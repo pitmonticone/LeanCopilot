@@ -36,7 +36,7 @@ private def init_generator : CoreM Bool := do
     logWarning  "Cannot find the generator model. If you would like to download it, run `suggest_tactics!` and wait for a few mintues."
     return false
 
-def generate (input : String) (numReturnSequences : UInt64 := 8) 
+def generate (input : String) (numReturnSequences : UInt64 := 32) 
 (maxLength : UInt64 := 256) (temperature : Float := 1.0) 
 (numBeams : UInt64 := 1) : CoreM (Array (String × Float)) := do
   if ← init_generator then
