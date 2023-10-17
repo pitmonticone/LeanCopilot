@@ -248,4 +248,3 @@ extern_lib libleanffi pkg := do
 
 
 require std from git "https://github.com/leanprover/std4" @ "main"
-require aesop from git "https://github.com/JLimperg/aesop" @ "master"
