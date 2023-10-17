@@ -1,27 +1,10 @@
 import Lake
-open Lake DSL
-open System Lean Elab
-
-
-inductive SupportedOS where
-  | linux
-  | macos
-deriving Inhabited, BEq
-
-
-def getOS : IO SupportedOS := do
-  if Platform.isWindows then
-    error "Windows is not supported"
-  if Platform.isOSX then
-    return .macos
-  else
-    return .linux
+open Lake DSL System Lean Elab
 
 
 inductive SupportedArch where
   | x86_64
   | arm64
-deriving Inhabited, BEq
 
 
 def getArch? : BaseIO (Option SupportedArch) := do
@@ -55,34 +38,3 @@ package LeanInfer {
 @[default_target]
 lean_lib LeanInfer {
 }
-
-
-def afterReleaseSync (pkg : Package) (build : SchedulerM (Job α)) : IndexBuildM (Job α) := do
-  if pkg.preferReleaseBuild ∧ pkg.name ≠ (← getRootPackage).name then
-    (← pkg.release.fetch).bindAsync fun _ _ => build
-  else
-    build
-
-
-def buildCpp (pkg : Package) (path : FilePath) (deps : List (BuildJob FilePath)) : SchedulerM (BuildJob FilePath) := do
-  let optLevel := if pkg.buildType == .release then "-O3" else "-O0"
-  let mut flags := #["-fPIC", "-std=c++11", "-stdlib=libc++", optLevel]
-  match get_config? targetArch with
-  | none => pure ()
-  | some arch => flags := flags.push s!"--target={arch}"
-  let args := flags ++ #["-I", (← getLeanIncludeDir).toString, "-I", (pkg.buildDir / "include").toString]
-  let oFile := pkg.buildDir / (path.withExtension "o")
-  let srcJob ← inputFile <| pkg.dir / path
-  buildFileAfterDepList oFile (srcJob :: deps) (extraDepTrace := computeHash flags) fun deps =>
-    compileO path.toString oFile deps[0]! args "clang++"
-
-
-target generator.o pkg : FilePath := do
-  let build := buildCpp pkg "generator.cpp" []
-  afterReleaseSync pkg build
-
-
-extern_lib libleanffi pkg := do
-  let name := nameToStaticLib "leanffi"
-  let oGen ← generator.o.fetch
-  buildStaticLib (pkg.nativeLibDir / name) #[oGen]
