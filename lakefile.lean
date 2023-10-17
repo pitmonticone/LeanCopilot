@@ -221,7 +221,7 @@ target generator.o pkg : FilePath := do
   let cpp ← libcpp.fetch
   let cppabi ← libcppabi.fetch
   let unwind ← libunwind.fetch
-  let build := buildCpp pkg "cpp/generator.cpp" [onnx, cpp, cppabi, unwind]
+  let build := buildCpp pkg "generator.cpp" [onnx, cpp, cppabi, unwind]
   afterReleaseSync pkg build
 
 extern_lib libleanffi pkg := do
