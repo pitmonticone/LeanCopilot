@@ -72,12 +72,6 @@ package LeanInfer where
 lean_lib LeanInfer {
 }
 
-
-lean_lib LeanInferTests {
-  globs := #[.submodules "LeanInferTests"]
-}
-
-
 private def nameToVersionedSharedLib (name : String) (v : String) : String :=
   if Platform.isWindows then s!"{name}.dll"
   else if Platform.isOSX  then s!"lib{name}.{v}.dylib"
