@@ -48,24 +48,9 @@ elab "is_arm?" : term => do
   return toExpr <| (← getArch?).map (· matches .arm64)
 
 
-structure SupportedPlatform where
-  os : SupportedOS
-  arch : SupportedArch
-
-
-def getPlatform : IO SupportedPlatform := do
-  if Platform.numBits != 64 then
-    error "Only 64-bit platforms are supported"
-  return ⟨← getOS, ← getArch⟩
-
-
-package LeanInfer where
-  preferReleaseBuild := get_config? noCloudRelease |>.isNone
-  precompileModules := true
-  buildType := BuildType.debug
-  buildArchive? := is_arm? |>.map (if · then "arm64" else "x86_64")
-  moreLinkArgs := #[s!"-L{__dir__}/build/lib", "-lstdc++"]
-
+package LeanInfer {
+  
+}
 
 @[default_target]
 lean_lib LeanInfer {
