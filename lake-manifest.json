@@ -1,12 +1,4 @@
 {"version": 6,
  "packagesDir": "lake-packages",
- "packages":
- [{"git":
-   {"url": "https://github.com/leanprover/std4",
-    "subDir?": null,
-    "rev": "0d90d74628daa9ee7d4039a3b035240ff6d64da5",
-    "opts": {},
-    "name": "std",
-    "inputRev?": "main",
-    "inherited": false}}],
+ "packages": [],
  "name": "LeanInfer"}

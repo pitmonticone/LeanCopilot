@@ -64,8 +64,7 @@ package LeanInfer where
   precompileModules := true
   buildType := BuildType.debug
   buildArchive? := is_arm? |>.map (if · then "arm64" else "x86_64")
-  moreLinkArgs := #[s!"-L{__dir__}/build/lib", "-lonnxruntime", "-lstdc++"]
-  weakLeanArgs := #[s!"--load-dynlib={__dir__}/build/lib/" ++ nameToSharedLib "onnxruntime"]
+  moreLinkArgs := #[s!"-L{__dir__}/build/lib", "-lstdc++"]
 
 
 @[default_target]
@@ -153,56 +152,6 @@ target libunwind pkg : FilePath := do
   copyLibJob pkg "libunwind.so.1.0"
 
 
-def getOnnxPlatform : IO String := do
-  let ⟨os, arch⟩  ← getPlatform
-  match os with
-  | .linux => return if arch == .x86_64 then "linux-x64" else "linux-aarch64"
-  | .macos => return "osx-universal2"
-
-
-/- Download and Copy ONNX's C++ header files to `build/include` and shared libraries to `build/lib` -/
-target libonnxruntime pkg : FilePath := do
-  afterReleaseAsync pkg do
-  let _ ← getPlatform
-  let dst := pkg.nativeLibDir / (nameToSharedLib "onnxruntime")
-  createParentDirs dst
-
-  let onnxVersion := "1.15.1"
-  let onnxFileStem := s!"onnxruntime-{← getOnnxPlatform}-{onnxVersion}"
-  let onnxFilename := onnxFileStem ++ ".tgz"
-  let onnxURL := "https://github.com/microsoft/onnxruntime/releases/download/v1.15.1/" ++ onnxFilename
-
-  try
-    let depTrace := Hash.ofString onnxURL
-    let onnxFile := pkg.buildDir / onnxFilename
-    let trace ← buildFileUnlessUpToDate dst depTrace do
-      logStep s!"Fetching the ONNX Runtime library"
-      download onnxFilename onnxURL onnxFile
-      untar onnxFilename onnxFile pkg.buildDir
-      let onnxStem := pkg.buildDir / onnxFileStem
-      let srcFile : FilePath := onnxStem / "lib" / (nameToVersionedSharedLib "onnxruntime" onnxVersion)
-      proc {
-        cmd := "cp"
-        args := #[srcFile.toString, dst.toString]
-      }
-      let dst' := pkg.nativeLibDir / (nameToVersionedSharedLib "onnxruntime" onnxVersion)
-      proc {
-        cmd := "cp"
-        args := #[dst.toString, dst'.toString]
-      }
-      proc {
-        cmd := "cp"
-        args := #["-r", (onnxStem / "include").toString, (pkg.buildDir / "include").toString]
-      }
-      proc {
-        cmd := "rm"
-        args := #["-rf", onnxStem.toString, onnxStem.toString ++ ".tgz"]
-      }
-    return (dst, trace)
-  else
-    return (dst, ← computeTrace dst)
-
-
 def buildCpp (pkg : Package) (path : FilePath) (deps : List (BuildJob FilePath)) : SchedulerM (BuildJob FilePath) := do
   let optLevel := if pkg.buildType == .release then "-O3" else "-O0"
   let mut flags := #["-fPIC", "-std=c++11", "-stdlib=libc++", optLevel]
@@ -217,17 +166,13 @@ def buildCpp (pkg : Package) (path : FilePath) (deps : List (BuildJob FilePath))
 
 
 target generator.o pkg : FilePath := do
-  let onnx ← libonnxruntime.fetch
   let cpp ← libcpp.fetch
   let cppabi ← libcppabi.fetch
   let unwind ← libunwind.fetch
-  let build := buildCpp pkg "generator.cpp" [onnx, cpp, cppabi, unwind]
+  let build := buildCpp pkg "generator.cpp" [cpp, cppabi, unwind]
   afterReleaseSync pkg build
 
 extern_lib libleanffi pkg := do
   let name := nameToStaticLib "leanffi"
   let oGen ← generator.o.fetch
   buildStaticLib (pkg.nativeLibDir / name) #[oGen]
-
-
-require std from git "https://github.com/leanprover/std4" @ "main"
