@@ -71,85 +71,12 @@ package LeanInfer where
 lean_lib LeanInfer {
 }
 
-private def nameToVersionedSharedLib (name : String) (v : String) : String :=
-  if Platform.isWindows then s!"{name}.dll"
-  else if Platform.isOSX  then s!"lib{name}.{v}.dylib"
-  else s!"lib{name}.so.{v}"
-
-
-def getClangSearchPaths : IO (Array FilePath) := do
-  let output ← IO.Process.output {
-    cmd := "clang++", args := #["-v", "-lstdc++"]
-  }
-  let mut paths := #[]
-  for s in output.stderr.splitOn do
-    if s.startsWith "-L/" then
-      paths := paths.push (s.drop 2 : FilePath).normalize
-  return paths
-
-
-def getLibPath (name : String) : IO (Option FilePath) := do
-  let searchPaths ← getClangSearchPaths
-  for path in searchPaths do
-    let libPath := path / name
-    if ← libPath.pathExists then
-      return libPath
-  return none
-
 
 def afterReleaseSync (pkg : Package) (build : SchedulerM (Job α)) : IndexBuildM (Job α) := do
   if pkg.preferReleaseBuild ∧ pkg.name ≠ (← getRootPackage).name then
     (← pkg.release.fetch).bindAsync fun _ _ => build
   else
     build
-
-
-def afterReleaseAsync (pkg : Package) (build : BuildM α) : IndexBuildM (Job α) := do
-  if pkg.preferReleaseBuild ∧ pkg.name ≠ (← getRootPackage).name then
-    (← pkg.release.fetch).bindSync fun _ _ => build
-  else
-    Job.async build
-
-
-def copyLibJob (pkg : Package) (libName : String) : IndexBuildM (BuildJob FilePath) :=
-  afterReleaseAsync pkg do
-  if !Platform.isOSX then  -- Only required for Linux
-    let dst := pkg.nativeLibDir / libName
-    try
-      let depTrace := Hash.ofString libName
-      let trace ← buildFileUnlessUpToDate dst depTrace do
-        let some src ← getLibPath libName | error s!"{libName} not found"
-        logStep s!"Copying from {src} to {dst}"
-        proc {
-          cmd := "cp"
-          args := #[src.toString, dst.toString]
-        }
-        -- TODO: Use relative symbolic links instead.
-        proc {
-          cmd := "cp"
-          args := #[src.toString, dst.toString.dropRight 2]
-        }
-        proc {
-          cmd := "cp"
-          args := #[dst.toString, dst.toString.dropRight 4]
-        }
-      pure (dst, trace)
-    else
-      pure (dst, ← computeTrace dst)
-  else
-    pure ("", .nil)
-
-
-target libcpp pkg : FilePath := do
-  copyLibJob pkg "libc++.so.1.0"
-
-
-target libcppabi pkg : FilePath := do
-  copyLibJob pkg "libc++abi.so.1.0"
-
-
-target libunwind pkg : FilePath := do
-  copyLibJob pkg "libunwind.so.1.0"
 
 
 def buildCpp (pkg : Package) (path : FilePath) (deps : List (BuildJob FilePath)) : SchedulerM (BuildJob FilePath) := do
@@ -166,11 +93,9 @@ def buildCpp (pkg : Package) (path : FilePath) (deps : List (BuildJob FilePath))
 
 
 target generator.o pkg : FilePath := do
-  let cpp ← libcpp.fetch
-  let cppabi ← libcppabi.fetch
-  let unwind ← libunwind.fetch
-  let build := buildCpp pkg "generator.cpp" [cpp, cppabi, unwind]
+  let build := buildCpp pkg "generator.cpp" []
   afterReleaseSync pkg build
+
 
 extern_lib libleanffi pkg := do
   let name := nameToStaticLib "leanffi"
