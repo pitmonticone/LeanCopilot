@@ -70,7 +70,6 @@ def suggestTactics : TacticM (Array (String × Float)) := do
 syntax "trace_generate" str : tactic
 syntax "trace_encode" str : tactic
 syntax "suggest_tactics" : tactic
-syntax "suggest_tactics!" : tactic
 
 elab_rules : tactic
   | `(tactic | trace_generate $input:str) => do
@@ -83,11 +82,6 @@ elab_rules : tactic
     let tacticsWithScores ← suggestTactics
     let tactics := tacticsWithScores.map (·.1)
     addSuggestions tac tactics.toList
-    
-  | `(tactic | suggest_tactics!%$tac) => do
-    Cache.checkModel
-    let tacticsWithScores ← suggestTactics
-    let tactics := tacticsWithScores.map (·.1)
-    addSuggestions tac tactics.toList
+
 
 end LeanInfer
