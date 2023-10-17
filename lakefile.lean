@@ -224,21 +224,10 @@ target generator.o pkg : FilePath := do
   let build := buildCpp pkg "cpp/generator.cpp" [onnx, cpp, cppabi, unwind]
   afterReleaseSync pkg build
 
-
-target retriever.o pkg : FilePath := do
-  let onnx ← libonnxruntime.fetch
-  let cpp ← libcpp.fetch
-  let cppabi ← libcppabi.fetch
-  let unwind ← libunwind.fetch
-  let build := buildCpp pkg "cpp/retriever.cpp" [onnx, cpp, cppabi, unwind]
-  afterReleaseSync pkg build
-
-
 extern_lib libleanffi pkg := do
   let name := nameToStaticLib "leanffi"
   let oGen ← generator.o.fetch
-  let oRet ← retriever.o.fetch
-  buildStaticLib (pkg.nativeLibDir / name) #[oGen, oRet]
+  buildStaticLib (pkg.nativeLibDir / name) #[oGen]
 
 
 require std from git "https://github.com/leanprover/std4" @ "main"

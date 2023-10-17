@@ -71,7 +71,6 @@ syntax "trace_generate" str : tactic
 syntax "trace_encode" str : tactic
 syntax "suggest_tactics" : tactic
 syntax "suggest_tactics!" : tactic
-syntax "suggest_premises" : tactic
 
 elab_rules : tactic
   | `(tactic | trace_generate $input:str) => do
@@ -90,12 +89,5 @@ elab_rules : tactic
     let tacticsWithScores ← suggestTactics
     let tactics := tacticsWithScores.map (·.1)
     addSuggestions tac tactics.toList
-
-  | `(tactic | suggest_premises) => do
-    let input ← getPpTacticState
-    let suggestions ← timeit s!"Time for retriving premises:" (retrieve input)
-    let premises := suggestions.map (·.1)
-    logInfo s!"{premises}"
-
 
 end LeanInfer
